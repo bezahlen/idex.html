@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>bezahlen_</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0:#03050b;
+    --bg-1:#060c1c;
+    --bg-2:#0a1630;
+    --neon:#2fd8ff;
+    --neon-2:#0090ff;
+    --neon-soft:rgba(47,216,255,0.35);
+    --white:#eef6ff;
+    --muted:#4d6484;
+    --line:rgba(47,216,255,0.14);
+    --danger-green:#3ddc84;
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+
+  html,body{
+    background:var(--bg-0);
+    color:var(--white);
+    font-family:'JetBrains Mono', monospace;
+    overflow-x:hidden;
+    cursor:none;
+    scroll-behavior:smooth;
+  }
+
+  a{ color:inherit; text-decoration:none; }
+  ::selection{ background:var(--neon); color:#000; }
+
+  /* ---------- background layers ---------- */
+  #rain{
+    position:fixed; inset:0; z-index:0; opacity:0.5;
+    pointer-events:none;
+  }
+
+  .grid-overlay{
+    position:fixed; inset:0; z-index:1; pointer-events:none;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size:42px 42px;
+    -webkit-mask-image:radial-gradient(ellipse at 50% 30%, rgba(0,0,0,0.9), transparent 75%);
+            mask-image:radial-gradient(ellipse at 50% 30%, rgba(0,0,0,0.9), transparent 75%);
+    animation:gridPulse 6s ease-in-out infinite;
+  }
+  @keyframes gridPulse{
+    0%,100%{ opacity:0.55; }
+    50%{ opacity:0.9; }
+  }
+
+  .scanlines{
+    position:fixed; inset:0; z-index:2; pointer-events:none;
+    background:repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.02) 0px,
+      rgba(255,255,255,0.02) 1px,
+      transparent 2px,
+      transparent 3px
+    );
+    mix-blend-mode:overlay;
+  }
+
+  .vignette{
+    position:fixed; inset:0; z-index:2; pointer-events:none;
+    background:radial-gradient(ellipse at 50% 20%, transparent 40%, rgba(0,0,0,0.85) 100%);
+  }
+
+  /* ---------- custom cursor ---------- */
+  .cursor-dot{
+    position:fixed; top:0; left:0; width:9px; height:9px; border-radius:50%;
+    background:var(--neon);
+    box-shadow:
+      0 0 6px 2px var(--neon),
+      0 0 16px 6px var(--neon-soft),
+      0 0 40px 14px rgba(47,216,255,0.25);
+    pointer-events:none; z-index:9999;
+    transform:translate(-50%,-50%);
+    transition:width .15s ease, height .15s ease, background .15s ease;
+  }
+  .cursor-ring{
+    position:fixed; top:0; left:0; width:34px; height:34px; border-radius:50%;
+    border:1px solid var(--neon-soft);
+    pointer-events:none; z-index:9998;
+    transform:translate(-50%,-50%);
+  }
+  .cursor-dot.active{ width:14px; height:14px; background:var(--white); }
+
+  .spark{
+    position:fixed; top:0; left:0; width:3px; height:3px; border-radius:50%;
+    background:var(--neon); pointer-events:none; z-index:9997;
+    box-shadow:0 0 6px 2px var(--neon-soft);
+  }
+
+  /* ---------- layout ---------- */
+  section{
+    position:relative; z-index:3;
+    min-height:100vh;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:40px 20px;
+  }
+
+  /* hero */
+  .eyebrow{
+    font-size:11px; letter-spacing:4px; color:var(--neon);
+    opacity:0.8; margin-bottom:18px; text-transform:uppercase;
+  }
+  .eyebrow::before{ content:"// "; opacity:0.6; }
+
+  .discord-card{
+    width:280px;
+    background:linear-gradient(180deg, rgba(10,22,48,0.9), rgba(6,12,28,0.95));
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:16px;
+    box-shadow:0 0 30px rgba(47,216,255,0.08), inset 0 0 40px rgba(47,216,255,0.03);
+    margin-bottom:26px;
+    backdrop-filter:blur(6px);
+    opacity:0;
+    animation:cardIn 0.9s ease forwards 0.3s;
+  }
+  @keyframes cardIn{
+    from{ opacity:0; transform:translateY(14px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+
+  .discord-card .banner{
+    height:52px; border-radius:6px;
+    background:linear-gradient(120deg, #0a1a3a, #0f2a55 40%, #103a63);
+    margin-bottom:-26px;
+  }
+  .discord-card .avatar-wrap{
+    width:56px; height:56px; border-radius:50%;
+    background:var(--bg-1);
+    border:4px solid rgba(10,22,48,0.95);
+    display:flex; align-items:center; justify-content:center;
+    position:relative; margin-left:6px;
+  }
+  .discord-card .avatar-wrap svg{ width:28px; height:28px; }
+  .status-dot{
+    width:14px; height:14px; border-radius:50%;
+    background:var(--danger-green);
+    border:3px solid rgba(10,22,48,0.95);
+    position:absolute; bottom:-1px; right:-1px;
+  }
+  .discord-card .uname{
+    margin-top:10px; font-weight:700; font-size:15px; color:var(--white);
+    display:flex; align-items:center; gap:6px;
+  }
+  .discord-card .uname svg{ width:14px; height:14px; }
+  .discord-card .tag{ font-size:11px; color:var(--muted); margin-top:2px; }
+  .discord-card .status-text{
+    font-size:11px; color:var(--danger-green); margin-top:10px;
+    display:flex; align-items:center; gap:6px;
+  }
+  .discord-card .status-text::before{
+    content:""; width:6px; height:6px; border-radius:50%; background:var(--danger-green);
+    box-shadow:0 0 6px var(--danger-green);
+  }
+  .discord-card .hint{
+    margin-top:12px; font-size:10px; line-height:1.5; color:var(--muted); border-top:1px solid var(--line); padding-top:10px;
+  }
+
+  .socials{ display:flex; gap:16px; margin-bottom:22px; }
+  .social-btn{
+    width:54px; height:54px; border-radius:14px;
+    background:rgba(10,22,48,0.6);
+    border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    position:relative;
+    transition:transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+  }
+  .social-btn svg{ width:24px; height:24px; fill:var(--white); transition:fill .25s ease; }
+  .social-btn:hover{
+    transform:translateY(-4px);
+    border-color:var(--neon);
+    box-shadow:0 8px 24px rgba(47,216,255,0.25), 0 0 18px rgba(47,216,255,0.35);
+  }
+  .social-btn:hover svg{ fill:var(--neon); }
+  .social-btn .label{
+    position:absolute; bottom:-24px; font-size:9px; letter-spacing:1px;
+    color:var(--muted); white-space:nowrap; text-transform:uppercase;
+  }
+
+  .views{
+    font-size:11px; color:var(--muted); letter-spacing:2px; text-transform:uppercase;
+    display:flex; align-items:center; gap:8px; margin-top:26px;
+  }
+  .views .num{ color:var(--neon); font-weight:700; font-size:13px; }
+  .views svg{ width:14px; height:14px; fill:var(--muted); }
+
+  .scroll-hint{
+    position:absolute; bottom:28px; font-size:10px; letter-spacing:3px; color:var(--muted);
+    text-transform:uppercase; display:flex; flex-direction:column; align-items:center; gap:8px;
+    animation:bounce 2s ease-in-out infinite;
+  }
+  .scroll-hint .bar{ width:1px; height:26px; background:linear-gradient(var(--neon), transparent); }
+  @keyframes bounce{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(6px); } }
+
+  /* name section */
+  .name-section{ text-align:center; }
+  .big-name{
+    font-family:'Space Mono', monospace;
+    font-weight:700;
+    font-size:clamp(48px, 12vw, 140px);
+    color:var(--white);
+    letter-spacing:2px;
+    text-shadow:0 0 10px rgba(47,216,255,0.4), 0 0 40px rgba(47,216,255,0.25);
+    opacity:0;
+    transform:translateY(30px);
+    transition:opacity 1s ease, transform 1s ease;
+  }
+  .big-name.visible{ opacity:1; transform:translateY(0); }
+  .big-name .cursor-blink{
+    display:inline-block; width:0.5ch; background:var(--neon);
+    animation:blink 1s step-end infinite; margin-left:6px;
+  }
+  @keyframes blink{ 50%{ opacity:0; } }
+
+  .subline{
+    margin-top:18px; font-size:13px; color:var(--muted); letter-spacing:3px; text-transform:uppercase;
+    opacity:0; transition:opacity 1.2s ease 0.3s;
+  }
+  .subline.visible{ opacity:1; }
+
+  footer{
+    position:relative; z-index:3; text-align:center; padding:30px 20px 50px;
+    font-size:10px; color:var(--muted); letter-spacing:2px;
+  }
+
+  @media (max-width:480px){
+    .discord-card{ width:230px; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation:none !important; transition:none !important; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="rain"></canvas>
+<div class="grid-overlay"></div>
+<div class="scanlines"></div>
+<div class="vignette"></div>
+
+<div class="cursor-ring" id="cursorRing"></div>
+<div class="cursor-dot" id="cursorDot"></div>
+
+<!-- ================= HERO ================= -->
+<section>
+  <div class="eyebrow">discord profile preview</div>
+
+  <div class="discord-card">
+    <div class="banner"></div>
+    <div class="avatar-wrap">
+      <svg viewBox="0 0 24 24"><path fill="#2fd8ff" d="M12 2a5 5 0 0 1 5 5v3a5 5 0 0 1-10 0V7a5 5 0 0 1 5-5Zm-7 17c0-3 3-5.2 7-5.2s7 2.2 7 5.2v1H5v-1Z"/></svg>
+      <div class="status-dot"></div>
+    </div>
+    <div class="uname">
+      soft_air
+      <svg viewBox="0 0 24 24"><path fill="#2fd8ff" d="M12 2 2 7v6c0 5 4.2 9.4 10 11 5.8-1.6 10-6 10-11V7l-10-5Z"/></svg>
+    </div>
+    <div class="tag">@soft_air · discord</div>
+    <div class="status-text">online</div>
+    <div class="hint">Live-Status kann per Lanyard-API eingebunden werden — dafür wird die Discord User-ID von soft_air sowie Mitgliedschaft im Lanyard-Server benötigt.</div>
+  </div>
+
+  <div class="socials">
+    <a class="social-btn" href="https://discord.com/users/soft_air" target="_blank" rel="noopener" title="Discord: soft_air">
+      <svg viewBox="0 0 24 24"><path d="M20.3 4.9A17.6 17.6 0 0 0 15.9 3.5c-.2.4-.4.9-.6 1.3a16.3 16.3 0 0 0-4.6 0c-.2-.4-.4-.9-.6-1.3-1.5.3-3 .8-4.4 1.4C3 8.7 2.3 12.4 2.6 16c1.8 1.3 3.6 2.1 5.3 2.6.4-.6.8-1.2 1.1-1.9-.6-.2-1.2-.5-1.7-.9.1-.1.3-.2.4-.3 3.3 1.5 6.9 1.5 10.2 0 .1.1.3.2.4.3-.5.4-1.1.7-1.7.9.3.7.7 1.3 1.1 1.9 1.7-.5 3.5-1.3 5.3-2.6.4-4.2-.7-7.9-2.7-11.1ZM9.7 13.8c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Zm4.6 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Z"/></svg>
+      <span class="label">discord</span>
+    </a>
+    <a class="social-btn" href="https://www.tiktok.com/@bezahlen_" target="_blank" rel="noopener" title="TikTok: bezahlen_">
+      <svg viewBox="0 0 24 24"><path d="M16.6 3c.4 2.2 1.8 3.7 4 4v3c-1.4 0-2.8-.4-4-1.2v6.4A6.4 6.4 0 1 1 10 8.9v3.1a3.2 3.2 0 1 0 2.4 3.1V3h4.2Z"/></svg>
+      <span class="label">tiktok</span>
+    </a>
+  </div>
+
+  <div class="views">
+    <svg viewBox="0 0 24 24"><path d="M12 5c-5.5 0-9.6 3.6-11 7 1.4 3.4 5.5 7 11 7s9.6-3.6 11-7c-1.4-3.4-5.5-7-11-7Zm0 11.5A4.5 4.5 0 1 1 12 7.5a4.5 4.5 0 0 1 0 9Z"/></svg>
+    profile views: <span class="num" id="viewCount">…</span>
+  </div>
+
+  <div class="scroll-hint">
+    <span>scroll</span>
+    <div class="bar"></div>
+  </div>
+</section>
+
+<!-- ================= NAME ================= -->
+<section class="name-section">
+  <div class="big-name" id="bigName">bezahlen_<span class="cursor-blink">&nbsp;</span></div>
+  <div class="subline" id="subline">welcome to my space</div>
+</section>
+
+<footer>
+  built for bezahlen_ · discord: soft_air · tiktok: @bezahlen_
+</footer>
+
+<script>
+/* ================= custom neon cursor ================= */
+const dot = document.getElementById('cursorDot');
+const ring = document.getElementById('cursorRing');
+let mx=0,my=0, rx=0,ry=0;
+window.addEventListener('mousemove', e=>{
+  mx=e.clientX; my=e.clientY;
+  dot.style.left = mx+'px'; dot.style.top = my+'px';
+  spawnSpark(mx,my);
+});
+function ringLoop(){
+  rx += (mx-rx)*0.15; ry += (my-ry)*0.15;
+  ring.style.left = rx+'px'; ring.style.top = ry+'px';
+  requestAnimationFrame(ringLoop);
+}
+ringLoop();
+
+document.querySelectorAll('a, button').forEach(el=>{
+  el.addEventListener('mouseenter', ()=>dot.classList.add('active'));
+  el.addEventListener('mouseleave', ()=>dot.classList.remove('active'));
+});
+
+let lastSpark = 0;
+function spawnSpark(x,y){
+  const now = performance.now();
+  if(now - lastSpark < 30) return;
+  lastSpark = now;
+  const s = document.createElement('div');
+  s.className='spark';
+  s.style.left = x+'px'; s.style.top = y+'px';
+  document.body.appendChild(s);
+  const angle = Math.random()*Math.PI*2;
+  const dist = 20 + Math.random()*30;
+  const dx = Math.cos(angle)*dist, dy = Math.sin(angle)*dist;
+  s.animate([
+    { transform:'translate(-50%,-50%) translate(0,0)', opacity:1 },
+    { transform:`translate(-50%,-50%) translate(${dx}px, ${dy}px)`, opacity:0 }
+  ], { duration: 500 + Math.random()*300, easing:'ease-out' })
+   .onfinish = ()=> s.remove();
+}
+
+/* ================= matrix-style rain background ================= */
+const canvas = document.getElementById('rain');
+const ctx = canvas.getContext('2d');
+let w,h,cols,drops;
+function resize(){
+  w = canvas.width = window.innerWidth;
+  h = canvas.height = window.innerHeight;
+  cols = Math.floor(w/18);
+  drops = new Array(cols).fill(0).map(()=>Math.random()*-100);
+}
+resize();
+window.addEventListener('resize', resize);
+const chars = "01アイウエオカキクケコサシスセ";
+function draw(){
+  ctx.fillStyle = 'rgba(3,5,11,0.12)';
+  ctx.fillRect(0,0,w,h);
+  ctx.font = '14px monospace';
+  for(let i=0;i<cols;i++){
+    const text = chars[Math.floor(Math.random()*chars.length)];
+    const x = i*18;
+    const y = drops[i]*18;
+    const grad = ctx.createLinearGradient(0,y-40,0,y);
+    grad.addColorStop(0,'rgba(47,216,255,0)');
+    grad.addColorStop(1,'rgba(47,216,255,0.55)');
+    ctx.fillStyle = grad;
+    ctx.fillText(text, x, y);
+    if(y > h && Math.random() > 0.975) drops[i] = 0;
+    drops[i]++;
+  }
+  requestAnimationFrame(draw);
+}
+draw();
+
+/* ================= scroll reveal for big name ================= */
+const bigName = document.getElementById('bigName');
+const subline = document.getElementById('subline');
+const io = new IntersectionObserver((entries)=>{
+  entries.forEach(entry=>{
+    if(entry.isIntersecting){
+      bigName.classList.add('visible');
+      subline.classList.add('visible');
+    }
+  });
+},{ threshold:0.4 });
+io.observe(bigName);
+
+/* ================= profile view counter ================= */
+/* Uses the free countapi.xyz service so the count is shared across every visitor. */
+(async ()=>{
+  const el = document.getElementById('viewCount');
+  const NAMESPACE = 'bezahlen-air-site';
+  const KEY = 'profile-views';
+  try{
+    const res = await fetch(`https://api.countapi.xyz/hit/${NAMESPACE}/${KEY}`);
+    const data = await res.json();
+    el.textContent = data.value.toLocaleString('de-DE');
+  }catch(err){
+    // fallback so the page never looks broken if the counter API is unreachable
+    const stored = parseInt(localStorage.getItem('fallback_views')||'0',10)+1;
+    localStorage.setItem('fallback_views', stored);
+    el.textContent = stored.toLocaleString('de-DE');
+  }
+})();
+</script>
+
+</body>
+</html>
